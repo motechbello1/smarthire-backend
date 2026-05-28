@@ -9,17 +9,14 @@ from app.core.database import Base, engine
 from app.api import auth, cvs, jobs, feedback, fairness
 import logging
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-# Import all models to register them
 from app.models import user, cv, job, ranking
 
-# Create all tables automatically on startup
 try:
     print("Creating database tables...")
     Base.metadata.create_all(bind=engine)
@@ -27,7 +24,6 @@ try:
 except Exception as e:
     print(f"Database table creation failed: {e}")
 
-# Initialize FastAPI app
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
@@ -37,12 +33,10 @@ app = FastAPI(
     openapi_url="/api/openapi.json"
 )
 
-# Rate limiter
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
@@ -52,7 +46,6 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
-# Request logging middleware
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     logger.info(f"{request.method} {request.url.path}")
@@ -60,7 +53,6 @@ async def log_requests(request: Request, call_next):
     logger.info(f"Status: {response.status_code}")
     return response
 
-# Health check endpoint
 @app.get("/", tags=["Health"])
 def health_check():
     return {
@@ -69,14 +61,12 @@ def health_check():
         "version": settings.VERSION
     }
 
-# Include routers
 app.include_router(auth.router, prefix="/api")
 app.include_router(cvs.router, prefix="/api")
 app.include_router(jobs.router, prefix="/api")
 app.include_router(feedback.router, prefix="/api")
 app.include_router(fairness.router, prefix="/api")
 
-# Rankings router - load separately to catch errors
 try:
     from app.api import rankings
     app.include_router(rankings.router)
@@ -84,7 +74,16 @@ try:
 except Exception as e:
     print(f"Rankings router failed to load: {e}")
 
-# Global exception handler
+@app.on_event("startup")
+async def startup_event():
+    try:
+        print("Pre-loading BERT model...")
+        from app.api.rankings import load_bert_model
+        load_bert_model()
+        print("BERT model pre-loaded successfully!")
+    except Exception as e:
+        print(f"BERT pre-load failed: {e}")
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Global exception: {str(exc)}", exc_info=True)
