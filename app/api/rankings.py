@@ -149,4 +149,4 @@ def get_job_rankings(
             } if cv else None
         })
     
-    return result
+    return results
