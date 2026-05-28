@@ -6,7 +6,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 from app.core.database import Base, engine
-from app.api import auth, rankings, cvs, jobs, feedback, fairness
+from app.api import auth, cvs, jobs, feedback, fairness
 import logging
 
 # Configure logging
@@ -20,9 +20,12 @@ logger = logging.getLogger(__name__)
 from app.models import user, cv, job, ranking
 
 # Create all tables automatically on startup
-print("Creating database tables...")
-Base.metadata.create_all(bind=engine)
-print("âœ“ Database tables created successfully")
+try:
+    print("Creating database tables...")
+    Base.metadata.create_all(bind=engine)
+    print("Database tables created successfully")
+except Exception as e:
+    print(f"Database table creation failed: {e}")
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -49,7 +52,6 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
-
 # Request logging middleware
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -58,17 +60,14 @@ async def log_requests(request: Request, call_next):
     logger.info(f"Status: {response.status_code}")
     return response
 
-
 # Health check endpoint
 @app.get("/", tags=["Health"])
 def health_check():
-    """Health check endpoint"""
     return {
         "status": "healthy",
         "service": settings.PROJECT_NAME,
         "version": settings.VERSION
     }
-
 
 # Include routers
 app.include_router(auth.router, prefix="/api")
@@ -76,8 +75,14 @@ app.include_router(cvs.router, prefix="/api")
 app.include_router(jobs.router, prefix="/api")
 app.include_router(feedback.router, prefix="/api")
 app.include_router(fairness.router, prefix="/api")
-app.include_router(rankings.router)  # New BERT-powered rankings
 
+# Rankings router - load separately to catch errors
+try:
+    from app.api import rankings
+    app.include_router(rankings.router)
+    print("Rankings router loaded successfully")
+except Exception as e:
+    print(f"Rankings router failed to load: {e}")
 
 # Global exception handler
 @app.exception_handler(Exception)
@@ -88,7 +93,6 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "Internal server error. Please try again later."}
     )
 
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
@@ -97,4 +101,3 @@ if __name__ == "__main__":
         port=8000,
         reload=settings.DEBUG
     )
-
