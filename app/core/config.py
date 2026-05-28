@@ -1,10 +1,9 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
 
-
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/smarthire"
+    DATABASE_URL: str = "sqlite:///./smarthire.db"
     
     # Security
     SECRET_KEY: str = "your-super-secret-key-change-this-in-production-min-32-characters-long"
@@ -13,8 +12,11 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     # CORS
-    FRONTEND_URL: str = "http://localhost:5173"
-    ALLOWED_ORIGINS: list = ["http://localhost:5173", "https://smarthire-ai.vercel.app"]
+    FRONTEND_URL: str = "https://smarthire-frontend-gamma.vercel.app"
+    ALLOWED_ORIGINS: list = [
+        "http://localhost:5173",
+        "https://smarthire-frontend-gamma.vercel.app",
+    ]
     
     # Email (Mock for now)
     SMTP_HOST: str = "smtp.gmail.com"
@@ -22,11 +24,11 @@ class Settings(BaseSettings):
     SMTP_USER: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
     EMAIL_FROM: str = "noreply@smarthire.ai"
-    EMAIL_MOCK: bool = True  # Set to False when using real SMTP
+    EMAIL_MOCK: bool = True
     
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = 60
-    LOGIN_RATE_LIMIT: str = "5/15minute"  # 5 attempts per 15 minutes
+    LOGIN_RATE_LIMIT: str = "5/15minute"
     
     # File Upload
     MAX_FILE_SIZE: int = 5 * 1024 * 1024  # 5MB
@@ -40,6 +42,5 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
-
 
 settings = Settings()
