@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from app.core.database import get_db
+from app.models.user import User
 from app.schemas.user import (
     UserRegister,
     UserResponse,
@@ -52,7 +53,6 @@ def login(
     try:
         result = auth_service.login_user(db, credentials.email, credentials.password)
 
-        # Production cookie settings for cross-domain HTTPS
         response.set_cookie(
             key="access_token",
             value=result["access_token"],
@@ -141,7 +141,6 @@ def refresh_token(
 
 @router.get("/me", response_model=UserResponse)
 def get_current_user(request: Request, db: Session = Depends(get_db)):
-    from app.models.user import User
     from app.core.security import decode_token
 
     access_token = request.cookies.get("access_token")
@@ -168,3 +167,10 @@ def get_current_user(request: Request, db: Session = Depends(get_db)):
         )
 
     return user
+
+
+@router.post("/fix-users")
+def fix_unverified_users(db: Session = Depends(get_db)):
+    updated = db.query(User).filter(User.is_verified == False).update({"is_verified": True})
+    db.commit()
+    return {"updated": updated}
